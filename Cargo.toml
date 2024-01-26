@@ -1,0 +1,15 @@
+[package]
+name = "readln"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "readln"
+path = "src/lib.rs"
+
+[[bin]]
+name = "readln-bin"
+path = "src/bin.rs"
+
+[dependencies]
+libc = "0.2"
