@@ -3,59 +3,48 @@ use std::io::{self};
 use std::os::raw::{c_char, c_int};
 
 pub fn read_key() -> io::Result<Key> {
-  let mut ch = getch()?;
+  Ok(match getch()? {
+    8 | 23 => Key::CtrlBackspace,
+    10 => Key::Enter,
+    27 => parse_esc_seq()?,
+    127 => Key::Backspace,
+    n if n > 31 => Key::Char(n as char),
+    _ => Key::NA,
+  })
+}
 
-  match ch {
-    27 => (),
-    10 => return Ok(Key::Enter),
-    127 => return Ok(Key::Backspace),
-    _ => return Ok(Key::Char(ch as char)),
-  }
-
+fn parse_esc_seq() -> io::Result<Key> {
+  let mut ch;
   let mut pos = 0;
+
   while pos < ESC_SEQ_LEN + 1 {
     ch = getch()?;
-
-    for ref seq in ESC_SEQ_LIST {
-      if pos == seq.value.len() {
+    for (ref key, seq) in ESC_SEQ_LIST {
+      if pos >= seq.len() {
         continue;
       }
 
-      if seq.value.chars().nth(pos).map(|c| c as u8).is_some_and(|c| c == ch) && seq.value.len() - 1 == pos {
-        return Ok(seq.key);
+      if seq[pos] == ch && seq.len() - 1 == pos {
+        return Ok(*key);
       }
     }
-
     pos += 1;
   }
 
-  Ok(Key::Special)
+  Ok(Key::NA)
 }
 
-const ESC_SEQ_LEN: usize = 4;
+type EscapeSequence = (Key, &'static [u8]);
+
+const ESC_SEQ_LEN: usize = 6;
 const ESC_SEQ_LIST: [EscapeSequence; ESC_SEQ_LEN] = [
-  EscapeSequence {
-    key: Key::ArrowRight,
-    value: "[C",
-  },
-  EscapeSequence {
-    key: Key::ArrowLeft,
-    value: "[D",
-  },
-  EscapeSequence {
-    key: Key::CtrlArrowRight,
-    value: "[1;5C",
-  },
-  EscapeSequence {
-    key: Key::CtrlArrowLeft,
-    value: "[1;5D",
-  },
+  (Key::ArrowUp, b"[A"),
+  (Key::ArrowDown, b"[B"),
+  (Key::ArrowRight, b"[C"),
+  (Key::ArrowLeft, b"[D"),
+  (Key::CtrlArrowRight, b"[1;5C"),
+  (Key::CtrlArrowLeft, b"[1;5D"),
 ];
-
-struct EscapeSequence {
-  key: Key,
-  value: &'static str,
-}
 
 extern "C" {
   fn tcgetattr(fd: c_int, termios_p: *mut libc::termios) -> c_int;
