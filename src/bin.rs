@@ -6,7 +6,7 @@ fn main() -> io::Result<()> {
   loop {
     let cmd = readln::pushln("> ", &mut history)?;
 
-    println!("OUT: {cmd:?}");
+    println!("{cmd:?}");
     if cmd == "q" {
       break;
     }

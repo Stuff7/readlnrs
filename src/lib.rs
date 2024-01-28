@@ -77,20 +77,20 @@ pub enum Key {
 ///
 /// Other editing operations are handled the same way as in the `readln` function, such as character insertion,
 /// deletion, and cursor movement.
-pub fn pushln<'a>(prompt: &str, history: &'a mut Vec<String>) -> io::Result<&'a String> {
+pub fn pushln<'a>(prompt: &str, history: &'a mut Vec<String>) -> io::Result<&'a str> {
+  let mut local_history = Vec::new();
   let mut new_buf = String::new();
   let mut pos = 0;
   let mut hpos = history.len();
   let mut buf = &mut new_buf;
+  let last_history_idx = history.len().saturating_sub(1);
 
   loop {
     promptln(prompt, buf, pos)?;
 
     match readch(buf, &mut pos)? {
       Key::Enter => break,
-      Key::ArrowUp => {
-        hpos = hpos.saturating_sub(1);
-      }
+      Key::ArrowUp => hpos = hpos.saturating_sub(1),
       Key::ArrowDown => {
         if hpos < history.len() {
           hpos += 1
@@ -99,13 +99,27 @@ pub fn pushln<'a>(prompt: &str, history: &'a mut Vec<String>) -> io::Result<&'a 
       _ => continue,
     }
 
-    buf = history.get_mut(hpos).unwrap_or(&mut new_buf);
+    let local_pos = last_history_idx.wrapping_sub(hpos);
+    buf = if let Some(item) = local_history.get_mut(local_pos) {
+      item
+    } else if let Some(item) = history.get(hpos) {
+      // We want to be able to mutate the existing history items during the loop but
+      // keep them the same after we return, that's why we clone them on demand here
+      local_history.push(item.clone());
+      &mut local_history[local_pos]
+    } else {
+      &mut new_buf
+    };
     pos = buf.len();
+  }
+
+  println!();
+  if buf.is_empty() {
+    return Ok("");
   }
 
   let buf = buf.clone();
   history.push(buf);
-  println!();
   Ok(&history[history.len() - 1])
 }
 
