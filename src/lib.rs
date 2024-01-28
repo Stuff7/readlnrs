@@ -164,8 +164,11 @@ pub fn pushln<'a>(prompt: &str, history: &'a mut Vec<String>) -> io::Result<&'a 
 pub fn readln(prompt: &str, buf: &mut String) -> io::Result<()> {
   let mut pos = buf.len();
 
-  while !matches!(readch(buf, &mut pos)?, Key::Enter) {
+  loop {
     promptln(prompt, buf, pos)?;
+    if matches!(readch(buf, &mut pos)?, Key::Enter) {
+      break;
+    }
   }
 
   println!();
